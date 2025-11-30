@@ -1,0 +1,154 @@
+# =============================================================================
+# 配置文件示例
+# Configuration Example for Multi-Task Learning
+# 车道线检测 + 交通标志识别 多任务学习配置
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 数据路径配置
+# Data Paths Configuration
+# -----------------------------------------------------------------------------
+paths:
+  # 车道线检测数据路径
+  lane_images_dir: "data/lane/images"          # 车道线图像目录
+  lane_masks_dir: "data/lane/masks"            # 车道线分割掩码目录
+  
+  # 交通标志识别数据路径
+  sign_images_dir: "data/sign/images"          # 交通标志图像目录
+  sign_labels_file: "data/sign/labels.csv"     # 交通标志标签文件（CSV格式）
+  # 如果使用文件夹结构组织标签，设置为 null
+  # sign_labels_file: null
+  
+  # 输出路径配置
+  output_dir: "outputs"                         # 输出目录
+  checkpoints_dir: "checkpoints"                # 模型检查点目录
+  logs_dir: "logs"                              # 日志目录
+
+# -----------------------------------------------------------------------------
+# 训练参数配置
+# Training Parameters Configuration
+# -----------------------------------------------------------------------------
+training:
+  batch_size: 8                                 # 批次大小
+  num_epochs: 100                               # 训练轮数
+  learning_rate: 0.001                          # 初始学习率
+  weight_decay: 0.0001                          # 权重衰减（L2正则化）
+  
+  # 图像尺寸配置
+  img_height: 256                               # 输入图像高度
+  img_width: 512                                # 输入图像宽度
+  
+  # 多任务损失权重配置
+  # 用于平衡两个任务的损失
+  task_loss_weights:
+    lane_segmentation: 1.0                      # 车道线分割损失权重
+    sign_classification: 0.5                    # 交通标志分类损失权重
+  
+  # 学习率调度器配置
+  scheduler:
+    type: "cosine"                              # 类型：cosine, step, plateau
+    step_size: 30                               # StepLR的步长
+    gamma: 0.1                                  # 学习率衰减因子
+    min_lr: 0.00001                             # 最小学习率
+  
+  # 早停配置
+  early_stopping:
+    enabled: true                               # 是否启用早停
+    patience: 15                                # 耐心值（无改善的轮数）
+    min_delta: 0.001                            # 最小改善阈值
+  
+  # 数据加载配置
+  num_workers: 4                                # 数据加载线程数
+  pin_memory: true                              # 是否固定内存（GPU训练时启用）
+  
+  # 训练/验证集划分
+  train_split: 0.8                              # 训练集比例
+  val_split: 0.2                                # 验证集比例
+  
+  # 随机种子
+  seed: 42                                      # 随机种子，确保可复现性
+
+# -----------------------------------------------------------------------------
+# 模型架构配置
+# Model Architecture Configuration
+# -----------------------------------------------------------------------------
+model:
+  encoder_name: "simple_cnn"                    # 编码器类型：simple_cnn, resnet18
+  
+  # 编码器通道配置
+  encoder_channels: [64, 128, 256, 512]         # 各层通道数
+  
+  # 分割任务配置
+  num_segmentation_classes: 2                   # 分割类别数（背景 + 车道线）
+  
+  # 分类任务配置
+  num_sign_classes: 43                          # 交通标志类别数（如GTSRB有43类）
+  
+  # Dropout配置
+  dropout_rate: 0.3                             # Dropout比率
+
+# -----------------------------------------------------------------------------
+# ONNX导出配置
+# ONNX Export Configuration
+# -----------------------------------------------------------------------------
+onnx:
+  onnx_output_path: "outputs/multitask_model.onnx"  # ONNX模型输出路径
+  opset_version: 14                             # ONNX opset版本
+  dynamic_batch: true                           # 是否使用动态批次维度
+  simplify: true                                # 是否简化ONNX模型
+
+# -----------------------------------------------------------------------------
+# ROS2集成配置
+# ROS2 Integration Configuration
+# -----------------------------------------------------------------------------
+ros2:
+  # 话题配置
+  input_image_topic: "/camera/image_raw"        # 输入图像话题
+  lane_mask_topic: "/perception/lane_mask"      # 车道线掩码输出话题
+  sign_label_topic: "/perception/sign_label"    # 交通标志标签输出话题
+  
+  # 节点配置
+  node_name: "lane_sign_perception_node"        # 节点名称
+  
+  # QoS配置
+  qos_depth: 10                                 # 队列深度
+  qos_reliability: "reliable"                   # 可靠性：reliable, best_effort
+  
+  # 推理配置
+  use_gpu: false                                # ONNX推理是否使用GPU
+
+# -----------------------------------------------------------------------------
+# 数据增强配置
+# Data Augmentation Configuration
+# -----------------------------------------------------------------------------
+augmentation:
+  # 训练时数据增强
+  train:
+    random_horizontal_flip: true                # 随机水平翻转
+    random_crop: true                           # 随机裁剪
+    crop_scale: [0.8, 1.0]                      # 裁剪比例范围
+    color_jitter:
+      enabled: true                             # 是否启用颜色抖动
+      brightness: 0.2                           # 亮度变化
+      contrast: 0.2                             # 对比度变化
+      saturation: 0.2                           # 饱和度变化
+      hue: 0.1                                  # 色调变化
+    normalize:
+      mean: [0.485, 0.456, 0.406]              # ImageNet均值
+      std: [0.229, 0.224, 0.225]               # ImageNet标准差
+  
+  # 验证/测试时数据处理
+  val:
+    normalize:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+# -----------------------------------------------------------------------------
+# 日志配置
+# Logging Configuration
+# -----------------------------------------------------------------------------
+logging:
+  level: "INFO"                                 # 日志级别：DEBUG, INFO, WARNING, ERROR
+  log_interval: 10                              # 打印日志的批次间隔
+  save_interval: 5                              # 保存检查点的轮数间隔
+  tensorboard: true                             # 是否使用TensorBoard
