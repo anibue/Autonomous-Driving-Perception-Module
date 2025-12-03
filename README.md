@@ -1,3 +1,5 @@
+[简体中文](README_ZN.md) | English
+
 # Autonomous Driving Perception Module
 
 A **multi-task learning** project for autonomous driving perception, featuring **lane line detection** and **traffic sign recognition** using a shared encoder architecture.
